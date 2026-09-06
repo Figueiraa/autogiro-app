@@ -64,40 +64,91 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         method = request.method
-        endpoint = _endpoint_label(request)
-        in_progress = http_requests_in_progress.labels(method=method, endpoint=endpoint)
-        duration = http_request_duration_seconds.labels(method=method, endpoint=endpoint)
+        # Antes do roteamento ainda não se sabe a rota: a métrica de requisições em
+        # andamento usa um rótulo provisório e as demais usam o template resolvido.
+        provisional = _provisional_label(request)
+        in_progress = http_requests_in_progress.labels(method=method, endpoint=provisional)
 
         in_progress.inc()
         start = time.perf_counter()
         try:
             response = await call_next(request)
         except Exception as exc:
+            endpoint = _endpoint_label(request, provisional)
             http_exceptions_total.labels(
                 method=method, endpoint=endpoint, exception=type(exc).__name__
             ).inc()
             # A exceção vira 500 no handler global; contabiliza como tal.
             http_requests_total.labels(method=method, endpoint=endpoint, status_code="500").inc()
+            http_request_duration_seconds.labels(method=method, endpoint=endpoint).observe(
+                time.perf_counter() - start
+            )
             raise
         else:
+            endpoint = _endpoint_label(request, provisional)
             http_requests_total.labels(
                 method=method, endpoint=endpoint, status_code=str(response.status_code)
             ).inc()
+            http_request_duration_seconds.labels(method=method, endpoint=endpoint).observe(
+                time.perf_counter() - start
+            )
             return response
         finally:
-            duration.observe(time.perf_counter() - start)
             in_progress.dec()
 
 
-def _endpoint_label(request: Request) -> str:
-    """Resolve o template da rota que atenderá a requisição.
+def _endpoint_label(request: Request, fallback: str) -> str:
+    """Resolve o template da rota que atendeu à requisição.
 
-    O roteamento do Starlette só grava `scope["route"]` depois do middleware, então
-    aqui repetimos o match contra as rotas da aplicação para já rotular a métrica de
-    requisições em andamento com um valor de baixa cardinalidade.
+    Depois do roteamento o Starlette grava a rota escolhida em `scope["route"]`.
+    O `path` de lá vem sem o prefixo do router (`/service-orders/{order_id}`), então
+    o prefixo é recuperado do próprio caminho da requisição: o template só descreve
+    o final da URL, e o que sobra na frente é o prefixo montado pelos `include`.
     """
-    for route in request.app.routes:
-        match, _ = route.matches(request.scope)
-        if match is not Match.NONE:
-            return getattr(route, "path", request.url.path)
-    return "unmatched"
+    scope = request.scope
+    route = scope.get("route")
+    template = getattr(route, "path", None) if route is not None else None
+    if template is None:
+        return fallback
+
+    path = scope.get("path") or request.url.path
+    # Quantos segmentos o template descreve; o restante à esquerda é o prefixo.
+    depth = template.count("/")
+    if depth and path.count("/") >= depth:
+        prefix = path.rsplit("/", depth)[0]
+        return f"{prefix}{template}"
+    return template
+
+
+def _provisional_label(request: Request) -> str:
+    """Rótulo usado antes do roteamento, apenas para requisições em andamento.
+
+    Percorre as rotas em profundidade porque o FastAPI agrupa os routers incluídos
+    em objetos intermediários sem atributo `path`.
+    """
+    template = _match_route(request.app.routes, request.scope)
+    return template if template is not None else "unmatched"
+
+
+def _match_route(routes, scope) -> str | None:
+    """Procura, em profundidade, o template da rota que casa com o `scope`."""
+    for route in routes:
+        try:
+            match, _ = route.matches(scope)
+        except Exception:  # pragma: no cover - rota sem suporte a match
+            continue
+        if match is Match.NONE:
+            continue
+
+        path = getattr(route, "path", None)
+        if path is not None:
+            return path
+
+        nested = getattr(route, "routes", None)
+        if nested is None:
+            original = getattr(route, "original_router", None)
+            nested = getattr(original, "routes", ()) if original is not None else ()
+        found = _match_route(nested, scope)
+        if found is not None:
+            return found
+    return None
