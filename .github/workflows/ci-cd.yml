@@ -1,0 +1,143 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  packages: write
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── CI: lint + testes automatizados + análise de segurança ─────────────────
+  ci:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: ruff check app tests scripts
+
+      - name: Security scan (bandit)
+        run: bandit -r app -f screen -ll
+
+      # Roda as duas suítes juntas para medir a cobertura consolidada; o gate de
+      # 90% está em pytest.ini e reprova o job automaticamente se cair abaixo.
+      - name: Tests (pytest + coverage gate 90%)
+        run: pytest
+
+      - name: Coverage summary
+        if: always()
+        run: python scripts/test_report_summary.py >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-and-coverage-reports
+          path: |
+            report/junit.xml
+            coverage.xml
+            htmlcov/
+          retention-days: 30
+
+  # ─── Build & push da imagem + scan de vulnerabilidades ─────────────────────
+  build:
+    name: Build & Push image
+    needs: ci
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image name and environment tag
+        id: image
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          # develop -> homolog | main -> prod
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then ENV_TAG="prod"; else ENV_TAG="homolog"; fi
+          echo "name=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "env_tag=$ENV_TAG" >> "$GITHUB_OUTPUT"
+          echo "ref=$IMAGE:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ steps.image.outputs.env_tag }}
+            ${{ steps.image.outputs.ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Falha o job se a imagem publicada tiver vulnerabilidade CRITICAL ou HIGH.
+      - name: Scan image (trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+
+  # ─── CD: deploy no cluster Kubernetes ──────────────────────────────────────
+  # O cluster do AutoGiro é local (kind), então o deploy roda em um self-hosted
+  # runner. Habilite definindo a variável de repositório DEPLOY_ENABLED=true.
+  # Sem isso o job é ignorado e a pipeline permanece verde.
+  deploy:
+    name: Deploy to Kubernetes
+    needs: build
+    if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: [self-hosted, autogiro]
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'homolog' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy application
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+        run: |
+          # Aponta o Deployment para a imagem recém-publicada.
+          sed -i "s|image: autogiro-app:latest|image: ${IMAGE}|" k8s/deployment.yaml
+
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml -f k8s/secret.yaml
+          kubectl apply -f k8s/deployment.yaml -f k8s/service.yaml -f k8s/hpa.yaml
+          kubectl apply -f k8s/ingress.yaml
+          kubectl -n autogiro rollout status deployment/autogiro-api --timeout=180s
+
+      - name: Smoke test (health + métricas)
+        run: |
+          kubectl -n autogiro port-forward svc/autogiro-api 8000:80 &
+          sleep 5
+          curl -fsS http://localhost:8000/health | grep -q '"status":"ok"'
+          curl -fsS http://localhost:8000/metrics | grep -q 'autogiro_http_requests_total'
+          echo "Health check e endpoint de métricas respondendo."

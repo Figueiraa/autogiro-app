@@ -1,0 +1,563 @@
+{
+  "info": {
+    "name": "AutoGiro API",
+    "description": "Plataforma de gestão para redes de oficinas mecânicas.\n\nFluxo: obtenha o token em 'Autenticação > Login por CPF' (a variável {{token}} é preenchida automaticamente) e use as demais requisições.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "gateway",
+      "value": "http://localhost:8000",
+      "description": "URL do Kong Gateway"
+    },
+    {
+      "key": "auth_endpoint",
+      "value": "https://xxxx.lambda-url.us-east-1.on.aws/",
+      "description": "Function URL da Lambda de autenticação"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "description": "Preenchido pelo login"
+    },
+    {
+      "key": "cpf",
+      "value": "52998224725"
+    }
+  ],
+  "item": [
+    {
+      "name": "Autenticação",
+      "item": [
+        {
+          "name": "Login por CPF",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Guarda o token para as demais requisições da coleção.",
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('token', pm.response.json().access_token);",
+                  "    pm.test('Token recebido', () => pm.expect(pm.response.json().access_token).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{cpf}}\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_endpoint}}",
+              "host": [
+                "{{auth_endpoint}}"
+              ]
+            },
+            "description": "Valida o CPF, consulta o cliente no banco e devolve o JWT."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clientes",
+      "item": [
+        {
+          "name": "Listar clientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/v1/clients",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clients"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Buscar cliente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/v1/clients/1",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clients",
+                "1"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Criar cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/clients",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clients"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Silva\",\n  \"cpf_cnpj\": \"529.982.247-25\",\n  \"phone\": \"11999998888\",\n  \"email\": \"maria@example.com\",\n  \"address\": \"Rua das Oficinas, 100\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Veículos",
+      "item": [
+        {
+          "name": "Listar veículos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/v1/vehicles",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "vehicles"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Criar veículo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/vehicles",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "vehicles"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plate\": \"ABC1D23\",\n  \"brand\": \"Volkswagen\",\n  \"model\": \"Gol\",\n  \"year\": 2020,\n  \"client_id\": 1\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tipos de serviço",
+      "item": [
+        {
+          "name": "Listar tipos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/v1/service-types",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "service-types"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Criar tipo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/service-types",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "service-types"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Troca de óleo\",\n  \"description\": \"Óleo e filtro\",\n  \"price\": 180.0,\n  \"estimated_duration_minutes\": 45\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Peças",
+      "item": [
+        {
+          "name": "Listar peças",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/v1/parts",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "parts"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Criar peça",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/parts",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "parts"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Filtro de óleo\",\n  \"description\": \"Compatível com linha VW\",\n  \"unit_price\": 45.9,\n  \"stock_quantity\": 20,\n  \"unit\": \"un\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ordens de serviço",
+      "item": [
+        {
+          "name": "Listar OS",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/v1/service-orders",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "service-orders"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Buscar OS",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/v1/service-orders/1",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "service-orders",
+                "1"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Abrir OS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/service-orders",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "service-orders"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicle_id\": 1,\n  \"client_id\": 1,\n  \"notes\": \"Cliente relata ruído na suspensão\",\n  \"items\": [\n    {\n      \"service_type_id\": 1,\n      \"quantity\": 1\n    }\n  ],\n  \"parts\": [\n    {\n      \"part_id\": 1,\n      \"quantity\": 1\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Atualizar status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/service-orders/1/status",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "service-orders",
+                "1",
+                "status"
+              ]
+            },
+            "description": "Transições válidas: RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO → FINALIZADA → ENTREGUE.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"EM_DIAGNOSTICO\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Aprovar orçamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/service-orders/1/budget-approval",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "service-orders",
+                "1",
+                "budget-approval"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approved\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Tempo médio de execução",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/v1/service-orders/metrics/average-execution-time",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "service-orders",
+                "metrics",
+                "average-execution-time"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Consultar status da OS",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/v1/service-orders/1/status",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "service-orders",
+                "1",
+                "status"
+              ]
+            },
+            "description": "Acompanhamento do status pelo cliente."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Observabilidade",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/health",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/health/live",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "health",
+                "live"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/health/ready",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "health",
+                "ready"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Métricas Prometheus",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/metrics",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: autogiro-config
+  namespace: autogiro
+data:
+  LOG_LEVEL: "INFO"
+  CORS_ORIGINS: "*"
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+  # Canal de notificacao de mudanca de status da OS: auto | log | email.
+  NOTIFICATION_CHANNEL: "log"
+  # New Relic (APM). A license key fica no Secret.
+  NEW_RELIC_APP_NAME: "autogiro-api"
+  NEW_RELIC_DISTRIBUTED_TRACING_ENABLED: "true"

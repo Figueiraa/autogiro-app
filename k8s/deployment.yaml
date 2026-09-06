@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autogiro-api
+  namespace: autogiro
+  labels:
+    app: autogiro-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: autogiro-api
+  template:
+    metadata:
+      labels:
+        app: autogiro-api
+      annotations:
+        # Descoberta automática pelo Prometheus (stack local complementar).
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      containers:
+        - name: api
+          # Imagem substituída pela pipeline de CI/CD. Em cluster local (kind),
+          # carregue com `kind load docker-image autogiro-app:latest`.
+          image: autogiro-app:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: autogiro-config
+            - secretRef:
+                name: autogiro-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+# O banco é o Neon (gerenciado, fora do cluster), então não há initContainer
+# aguardando Postgres local — a readinessProbe já cobre a conectividade via
+# /health/ready, que executa um SELECT 1.

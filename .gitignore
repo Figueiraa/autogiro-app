@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Variáveis de ambiente
+.env
+
+# Banco de dados SQLite
+*.db
+*.db-journal
+
+# Pytest / cobertura (relatórios gerados a cada execução)
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+report/
+
+# Mypy / Ruff
+.mypy_cache/
+.ruff_cache/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl

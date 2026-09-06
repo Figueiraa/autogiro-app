@@ -1,0 +1,60 @@
+# Exposição da API através do Kong Gateway.
+#
+# O plugin `jwt` valida o token emitido pela Lambda (autogiro-auth) antes de
+# rotear para o Service. Rotas públicas (/health, /docs) ficam em um Ingress
+# separado, sem o plugin.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: autogiro-api
+  namespace: autogiro
+  annotations:
+    konghq.com/plugins: autogiro-jwt
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: autogiro-api
+                port:
+                  number: 80
+---
+# Rotas públicas: health checks, métricas e documentação — sem autenticação.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: autogiro-api-public
+  namespace: autogiro
+  annotations:
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: autogiro-api
+                port:
+                  number: 80
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: autogiro-api
+                port:
+                  number: 80
+          - path: /openapi.json
+            pathType: Exact
+            backend:
+              service:
+                name: autogiro-api
+                port:
+                  number: 80

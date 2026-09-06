@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: autogiro-api
+  namespace: autogiro
+  labels:
+    app: autogiro-api
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: /metrics
+spec:
+  type: ClusterIP
+  selector:
+    app: autogiro-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+# Acesso local:  kubectl -n autogiro port-forward svc/autogiro-api 8000:80
+# Exposição externa: via Ingress do Kong (ver ingress.yaml).
