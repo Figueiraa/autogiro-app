@@ -79,6 +79,12 @@ jobs:
           echo "env_tag=$ENV_TAG" >> "$GITHUB_OUTPUT"
           echo "ref=$IMAGE:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
+      # QEMU emula arm64 no runner x86, permitindo o build multi-arquitetura.
+      # Os nos do EKS sao Graviton (t4g), entao a imagem precisa existir em arm64.
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
@@ -93,6 +99,7 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ steps.image.outputs.name }}:${{ steps.image.outputs.env_tag }}
             ${{ steps.image.outputs.ref }}
