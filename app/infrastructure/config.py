@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # Emissor esperado no token. A Lambda `autogiro-auth` assina com esta claim `iss`
+    # e o Kong usa o mesmo valor como chave da credencial JWT do Consumer.
+    JWT_ISSUER: str = "autogiro-auth"
+
     # Notificações de mudança de status da OS.
     # auto  -> e-mail se SMTP_HOST estiver definido, senão log
     # email -> força o canal de e-mail (SMTP)

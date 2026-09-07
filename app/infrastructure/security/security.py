@@ -23,12 +23,24 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(subject: str) -> str:
+    """Emite um token local no mesmo formato da Lambda de autenticação.
+
+    O `sub` carrega o CPF/CNPJ do cliente e a claim `iss` identifica o emissor —
+    é o que o plugin `jwt` do Kong usa para escolher o segredo de verificação.
+    """
     expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": subject, "exp": expire}
+    payload = {"sub": subject, "exp": expire, "iss": settings.JWT_ISSUER}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def decode_access_token(token: str) -> str | None:
+    """Valida a assinatura e devolve o `sub` do token (o CPF/CNPJ do cliente).
+
+    A validação do `iss` é feita pelo Kong, que só encaminha a requisição depois de
+    casar a claim com a credencial do Consumer. Aqui aceitamos qualquer emissor cuja
+    assinatura confira com o segredo compartilhado: a API é o último elo da cadeia e
+    não precisa duplicar a política do gateway.
+    """
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload.get("sub")

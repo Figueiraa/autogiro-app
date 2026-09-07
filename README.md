@@ -64,6 +64,29 @@ TOKEN=$(curl -sX POST "$AUTH_ENDPOINT"   -H 'Content-Type: application/json'   -
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/service-orders
 ```
 
+### Sem a Lambda (execução local)
+
+A API expõe o mesmo contrato em `POST /api/v1/auth/token`, para rodar e demonstrar o
+sistema sem depender da AWS. O token produzido é **intercambiável** com o da Lambda:
+ambos usam o segredo HS256 compartilhado e a mesma claim `iss`.
+
+```bash
+TOKEN=$(curl -sX POST http://localhost:8000/api/v1/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"cpf": "529.982.247-25"}' | jq -r .access_token)
+
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/auth/me
+```
+
+> O cliente precisa estar cadastrado: a autenticação **consulta** a base, não cadastra.
+> CPF inválido e CPF não cadastrado respondem igual (401), para não revelar quais
+> documentos existem na oficina.
+
+| Rota | Método | Descrição |
+|---|---|---|
+| `/api/v1/auth/token` | POST | Emite o JWT a partir do CPF |
+| `/api/v1/auth/me` | GET | Devolve o cliente identificado pelo token |
+
 ## Executando localmente
 
 ### Com Docker Compose (recomendado)
@@ -128,6 +151,24 @@ kubectl -n autogiro rollout status deployment/autogiro-api
 Métricas de negócio expostas: `autogiro_service_orders_opened_total`,
 `autogiro_service_order_status_transitions_total`, `autogiro_budget_approvals_total`,
 `autogiro_notifications_total`.
+
+### Stack local (Docker Compose)
+
+O `docker compose up` sobe também Prometheus e Grafana, com dashboards e alertas
+provisionados automaticamente a partir de [`monitoring/`](monitoring/):
+
+| Serviço | URL | Credenciais |
+|---|---|---|
+| Grafana | http://localhost:3000 | `admin` / `admin` |
+| Prometheus | http://localhost:9090 | — |
+
+**Dashboard `AutoGiro API — Observabilidade`** (17 painéis): saúde e SLO pelo método RED,
+latência p50/p95/p99 por endpoint, e os indicadores de negócio da oficina — OS abertas
+em 24h, orçamentos aprovados e recusados, transições de status e falhas de notificação.
+
+**6 regras de alerta** em [`monitoring/prometheus/rules/alerts.yml`](monitoring/prometheus/rules/alerts.yml):
+API indisponível, taxa de erro 5xx acima de 5%, latência p95 fora do SLO, exceções não
+tratadas, falha no envio de notificações e ausência de OS em horário comercial.
 
 ## Identificadores
 

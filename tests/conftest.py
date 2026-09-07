@@ -4,6 +4,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.infrastructure.database import Base, get_db
+from app.infrastructure.persistence.models.client_model import Client as ClientModel
 from app.main import app
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -51,12 +52,29 @@ async def client(db: AsyncSession):
     app.dependency_overrides.clear()
 
 
+# CPF válido pelos dígitos verificadores, usado como o cliente já autenticado.
+# Deliberadamente diferente do CPF dos casos de teste (529.982.247-25), para que
+# cadastrar um cliente novo não colida com este por duplicidade.
+AUTH_CPF = "111.444.777-35"
+AUTH_CPF_DIGITS = "11144477735"
+
+
 @pytest_asyncio.fixture(loop_scope="function")
 async def auth_client(db: AsyncSession):
+    """Cliente HTTP autenticado pelo fluxo da Fase 3: token emitido a partir do CPF.
+
+    O cliente é semeado direto na base porque em produção ele já existe quando a
+    Lambda `autogiro-auth` é chamada — ela consulta, não cadastra. A autenticação em
+    si passa pela rota real (`POST /auth/token`), então os testes exercitam o mesmo
+    caminho de emissão e validação de token usado em produção.
+    """
     app.dependency_overrides[get_db] = lambda: db
+
+    db.add(ClientModel(name="Cliente de Teste", cpf_cnpj=AUTH_CPF_DIGITS))
+    await db.commit()
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-        await c.post("/api/v1/auth/register", json={"username": "admin", "email": "admin@test.com", "password": "secret"})
-        resp = await c.post("/api/v1/auth/login", data={"username": "admin", "password": "secret"})
+        resp = await c.post("/api/v1/auth/token", json={"cpf": AUTH_CPF})
         token = resp.json()["access_token"]
         c.headers.update({"Authorization": f"Bearer {token}"})
         yield c

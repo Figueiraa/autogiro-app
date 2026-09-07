@@ -1,6 +1,8 @@
 import pytest
 from httpx import AsyncClient
 
+from tests.conftest import AUTH_CPF_DIGITS
+
 
 @pytest.mark.asyncio
 async def test_create_client(auth_client: AsyncClient):
@@ -31,7 +33,10 @@ async def test_list_clients(auth_client: AsyncClient):
     await auth_client.post("/api/v1/clients", json={"name": "A", "cpf_cnpj": "529.982.247-25"})
     r = await auth_client.get("/api/v1/clients")
     assert r.status_code == 200
-    assert len(r.json()) == 1
+
+    # Além do cliente criado aqui, a listagem traz o cliente autenticado da fixture.
+    documentos = {item["cpf_cnpj"] for item in r.json()}
+    assert documentos == {"52998224725", AUTH_CPF_DIGITS}
 
 
 @pytest.mark.asyncio
