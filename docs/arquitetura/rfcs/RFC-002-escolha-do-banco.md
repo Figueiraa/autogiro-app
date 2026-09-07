@@ -92,6 +92,26 @@ automático das branches de homologação e produção:
 | `develop` | `homolog` | Push em `develop` |
 | `main` | `prod` | Push em `main` |
 
+### Nota sobre o isolamento entre ambientes
+
+O provisionamento real produziu **dois projetos no Neon**, e não um só com duas branches, como
+o desenho acima sugere. A causa é o state do Terraform: cada ambiente tem seu próprio workspace
+no HCP (`autogiro-infra-db-homolog` e `-prod`), e cada workspace criou seu próprio projeto.
+
+| Workspace | Projeto Neon | Branch usada no deploy |
+|---|---|---|
+| `autogiro-infra-db-homolog` | `rough-math-76533899` | `homolog` |
+| `autogiro-infra-db-prod` | `misty-salad-45431057` | `prod` |
+
+A decisão foi **manter esse desenho**. Ele consome duas das 100 vagas de projeto do free tier
+e deixa duas branches ociosas, mas em contrapartida os ambientes ficam isolados no nível mais
+alto possível: produção e homologação não compartilham projeto, cota de storage nem
+compute-hours. Um erro de configuração em homologação não tem como afetar produção.
+
+A alternativa — um único workspace do HCP, deixando as branches do Neon fazerem toda a
+separação — seria mais econômica em recursos, mas colocaria os dois ambientes sob o mesmo
+state e a mesma cota.
+
 ## Decisão
 
 Adotar **PostgreSQL 17 gerenciado no Neon**, provisionado por Terraform (provider

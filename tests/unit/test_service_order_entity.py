@@ -71,3 +71,60 @@ def test_full_happy_path():
     assert order.started_at is not None
     assert order.completed_at is not None
     assert order.delivered_at is not None
+
+
+class TestPermanenciaPorStatus:
+    """A transição devolve quanto tempo a OS ficou no status que deixou.
+
+    É o dado que alimenta o dashboard de tempo médio por status.
+    """
+
+    def _os(self, **kwargs):
+        return ServiceOrder(
+            number="OS202609070001", vehicle_id=1, client_id=1, total_budget=100.0, **kwargs
+        )
+
+    def test_devolve_o_status_anterior_e_a_permanencia(self):
+        criada = datetime(2026, 9, 7, 10, 0, tzinfo=UTC)
+        order = self._os(updated_at=criada)
+
+        anterior, segundos = order.transition_to(
+            ServiceOrderStatus.EM_DIAGNOSTICO, now=datetime(2026, 9, 7, 12, 30, tzinfo=UTC)
+        )
+
+        assert anterior == ServiceOrderStatus.RECEBIDA
+        assert segundos == 9000.0  # 2h30
+
+    def test_usa_created_at_quando_nunca_houve_atualizacao(self):
+        order = self._os(created_at=datetime(2026, 9, 7, 8, 0, tzinfo=UTC))
+
+        _anterior, segundos = order.transition_to(
+            ServiceOrderStatus.EM_DIAGNOSTICO, now=datetime(2026, 9, 7, 9, 0, tzinfo=UTC)
+        )
+
+        assert segundos == 3600.0
+
+    def test_sem_marco_anterior_devolve_none(self):
+        order = self._os()
+
+        _anterior, segundos = order.transition_to(ServiceOrderStatus.EM_DIAGNOSTICO)
+
+        assert segundos is None
+
+    def test_tolera_timestamp_sem_fuso(self):
+        """O SQLite devolve datetimes naive; o PostgreSQL, aware."""
+        order = self._os(updated_at=datetime(2026, 9, 7, 10, 0))  # naive
+
+        _anterior, segundos = order.transition_to(
+            ServiceOrderStatus.EM_DIAGNOSTICO, now=datetime(2026, 9, 7, 11, 0, tzinfo=UTC)
+        )
+
+        assert segundos == 3600.0
+
+    def test_a_transicao_atualiza_o_updated_at(self):
+        momento = datetime(2026, 9, 7, 15, 0, tzinfo=UTC)
+        order = self._os(updated_at=datetime(2026, 9, 7, 10, 0, tzinfo=UTC))
+
+        order.transition_to(ServiceOrderStatus.EM_DIAGNOSTICO, now=momento)
+
+        assert order.updated_at == momento

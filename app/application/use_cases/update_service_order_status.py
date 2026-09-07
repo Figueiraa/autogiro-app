@@ -4,6 +4,7 @@ from app.application.ports.service_order_repository import ServiceOrderRepositor
 from app.domain.entities.service_order import ServiceOrder
 from app.domain.exceptions.domain_exceptions import NotFoundError
 from app.domain.value_objects.service_order_status import ServiceOrderStatus
+from app.infrastructure.observability.metrics import record_status_duration
 
 
 class UpdateServiceOrderStatusUseCase:
@@ -22,7 +23,12 @@ class UpdateServiceOrderStatusUseCase:
         if not order:
             raise NotFoundError("Ordem de serviço", order_id)
         # A regra de transição (validação + timestamps) vive na entidade de domínio.
-        order.transition_to(new_status)
+        # Ela devolve o status deixado e quanto tempo a OS ficou nele, para a métrica
+        # de tempo médio por status.
+        status_anterior, permanencia = order.transition_to(new_status)
+        if permanencia is not None:
+            record_status_duration(status_anterior.value, permanencia)
+
         updated = await self._repo.update(order)
 
         client = await self._clients.get_by_id(updated.client_id)
