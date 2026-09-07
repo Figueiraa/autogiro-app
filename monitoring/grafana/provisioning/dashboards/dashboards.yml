@@ -1,0 +1,14 @@
+# Carrega os dashboards versionados no repositório (monitoring/grafana/dashboards).
+apiVersion: 1
+
+providers:
+  - name: autogiro
+    orgId: 1
+    folder: AutoGiro
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
