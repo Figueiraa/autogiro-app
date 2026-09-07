@@ -139,6 +139,16 @@ kubectl -n autogiro rollout status deployment/autogiro-api
 | OpenAPI JSON | `http://localhost:8000/openapi.json` |
 | Coleção Postman | [`docs/autogiro.postman_collection.json`](docs/autogiro.postman_collection.json) |
 
+## Documentação da arquitetura
+
+Índice completo em [`docs/arquitetura/`](docs/arquitetura/README.md).
+
+| Tipo | Documentos |
+|---|---|
+| Diagramas | [componentes](docs/arquitetura/diagramas/01-componentes.md) · [sequência da autenticação](docs/arquitetura/diagramas/02-sequencia-autenticacao.md) · [sequência da abertura de OS](docs/arquitetura/diagramas/03-sequencia-abertura-de-os.md) |
+| RFCs | [001 nuvem](docs/arquitetura/rfcs/RFC-001-escolha-da-nuvem.md) · [002 banco](docs/arquitetura/rfcs/RFC-002-escolha-do-banco.md) · [003 autenticação](docs/arquitetura/rfcs/RFC-003-estrategia-de-autenticacao.md) |
+| ADRs | [001 REST](docs/arquitetura/adrs/ADR-001-comunicacao-rest-sincrona.md) · [002 HPA](docs/arquitetura/adrs/ADR-002-hpa-escalabilidade.md) · [003 repositórios](docs/arquitetura/adrs/ADR-003-quatro-repositorios.md) · [004 emissor/validador](docs/arquitetura/adrs/ADR-004-emissor-desacoplado-do-validador.md) |
+
 ## Observabilidade
 
 | Endpoint | Finalidade |
