@@ -24,6 +24,11 @@ RUN useradd --create-home --uid 1000 appuser
 COPY --from=builder /install /usr/local
 COPY app/ ./app/
 
+# setuptools e wheel são ferramentas de build e não são usadas em runtime. Remove
+# da imagem final para reduzir a superfície de ataque: e delas que vinham as CVEs
+# de jaraco.context e wheel apontadas pelo scan.
+RUN pip uninstall -y setuptools wheel pip 2>/dev/null || true
+
 USER appuser
 
 EXPOSE 8000
