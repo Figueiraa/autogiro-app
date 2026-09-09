@@ -18,21 +18,22 @@
     {
       "key": "gateway",
       "value": "http://localhost:8000",
-      "description": "URL do Kong Gateway"
+      "description": "Proxy do Kong. Em producao e o hostname do NLB: kubectl -n kong get svc"
     },
     {
       "key": "auth_endpoint",
       "value": "https://xxxx.lambda-url.us-east-1.on.aws/",
-      "description": "Function URL da Lambda de autenticação"
+      "description": "Function URL da Lambda. Obtenha com: terraform output -raw auth_endpoint"
     },
     {
       "key": "token",
       "value": "",
-      "description": "Preenchido pelo login"
+      "description": "Preenchido automaticamente pela requisicao de autenticacao"
     },
     {
       "key": "cpf",
-      "value": "52998224725"
+      "value": "44232322191",
+      "description": "CPF da cliente Maria Oliveira, cadastrada pela migration 003_seed_demonstracao"
     }
   ],
   "item": [

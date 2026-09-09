@@ -1,3 +1,4 @@
+import logging
 import time
 import uuid
 
@@ -17,17 +18,43 @@ from app.infrastructure.observability.metrics import (
 METRICS_PATH = "/metrics"
 
 
+# Logger separado do da aplicação: permite baixar o nível só do log de acesso
+# sem perder os logs de negócio.
+access_logger = logging.getLogger("autogiro.access")
+
+
 class RequestIdMiddleware(BaseHTTPMiddleware):
-    """Gera/propaga um X-Request-ID por requisição para rastreio e correlação de logs."""
+    """Gera/propaga um X-Request-ID por requisição para rastreio e correlação de logs.
+
+    Também emite uma linha de log por requisição concluída. Sem ela o
+    `request_id` existiria apenas no header da resposta e nos logs de erro — não
+    haveria como seguir o rastro de uma requisição bem-sucedida entre as
+    réplicas, que é o ponto de ter correlação.
+    """
 
     async def dispatch(self, request: Request, call_next):
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
         request.state.request_id = request_id
         token = request_id_ctx.set(request_id)
+        started = time.perf_counter()
         try:
             response = await call_next(request)
+
+            # O log fica DENTRO do try, antes do reset do ContextVar: e o
+            # RequestIdFilter que injeta o request_id no registro, lendo o
+            # contexto. Logar depois do reset produziria uma linha sem
+            # correlacao — exatamente o que este middleware existe para evitar.
+            if request.url.path != METRICS_PATH:
+                access_logger.info(
+                    "%s %s -> %s em %sms",
+                    request.method,
+                    request.url.path,
+                    response.status_code,
+                    round((time.perf_counter() - started) * 1000, 2),
+                )
         finally:
             request_id_ctx.reset(token)
+
         response.headers["X-Request-ID"] = request_id
         return response
 

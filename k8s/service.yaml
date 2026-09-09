@@ -6,6 +6,9 @@ metadata:
   labels:
     app: autogiro-api
   annotations:
+    # A porta e a do CONTAINER (8000), nao a do Service: o agente Prometheus
+    # coleta direto do pod, entao o alvo e o containerPort. Anunciar 80 aqui faz
+    # o scrape bater no endpoint do Service, onde nada escuta.
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
     prometheus.io/path: /metrics

@@ -49,3 +49,33 @@ async def test_api_is_versioned(client: AsyncClient):
     assert (await client.get("/clients")).status_code == 404
     # Com o prefixo, exige autenticação (401), provando que a rota vive sob /api/v1.
     assert (await client.get("/api/v1/clients")).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_emite_log_de_acesso_correlacionado(client: AsyncClient, caplog):
+    """Cada requisição gera uma linha de log carregando o request_id.
+
+    Sem isso o id existiria só no header da resposta, e não haveria como seguir
+    o rastro de uma requisição bem-sucedida entre as réplicas.
+    """
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="autogiro.access"):
+        await client.get("/health", headers={"X-Request-ID": "correlacao-xyz"})
+
+    registros = [r for r in caplog.records if r.name == "autogiro.access"]
+    assert registros, "nenhum log de acesso foi emitido"
+    assert getattr(registros[-1], "request_id", None) == "correlacao-xyz"
+
+
+@pytest.mark.asyncio
+async def test_o_endpoint_de_metricas_nao_gera_log_de_acesso(
+    client: AsyncClient, caplog
+):
+    """O scrape do Prometheus é de alta frequência e inundaria o log."""
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="autogiro.access"):
+        await client.get("/metrics")
+
+    assert not [r for r in caplog.records if r.name == "autogiro.access"]
