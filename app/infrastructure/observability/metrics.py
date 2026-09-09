@@ -67,6 +67,19 @@ service_order_status_transitions_total = Counter(
     registry=REGISTRY,
 )
 
+# Quanto tempo a OS permaneceu em cada status antes de sair dele. Alimenta o
+# dashboard de "tempo médio de execução por status" exigido no enunciado.
+#
+# Os buckets vão de 5 minutos a 7 dias: o ciclo de uma ordem de serviço em uma
+# oficina é medido em horas ou dias, não em milissegundos como o de uma requisição.
+service_order_status_duration_seconds = Histogram(
+    "autogiro_service_order_status_duration_seconds",
+    "Tempo de permanência da ordem de serviço em cada status, em segundos.",
+    labelnames=("status",),
+    buckets=(300, 900, 3600, 10800, 21600, 43200, 86400, 259200, 604800),
+    registry=REGISTRY,
+)
+
 budget_approvals_total = Counter(
     "autogiro_budget_approvals_total",
     "Respostas de orçamento recebidas do cliente.",
@@ -104,6 +117,11 @@ def record_status_transition(status: str) -> None:
     service_order_status_transitions_total.labels(status=status).inc()
 
 
+def record_status_duration(status: str, seconds: float) -> None:
+    """Registra por quanto tempo a OS ficou no status que acabou de deixar."""
+    service_order_status_duration_seconds.labels(status=status).observe(seconds)
+
+
 def record_budget_approval(approved: bool) -> None:
     budget_approvals_total.labels(result="approved" if approved else "refused").inc()
 
@@ -130,6 +148,7 @@ __all__ = [
     "record_notification",
     "record_service_order_opened",
     "record_status_transition",
+    "record_status_duration",
     "render_latest",
     "service_order_status_transitions_total",
     "service_orders_opened_total",

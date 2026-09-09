@@ -79,6 +79,12 @@ jobs:
           echo "env_tag=$ENV_TAG" >> "$GITHUB_OUTPUT"
           echo "ref=$IMAGE:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
+      # QEMU emula arm64 no runner x86, permitindo o build multi-arquitetura.
+      # Os nos do EKS sao Graviton (t4g), entao a imagem precisa existir em arm64.
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
@@ -93,6 +99,7 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ steps.image.outputs.name }}:${{ steps.image.outputs.env_tag }}
             ${{ steps.image.outputs.ref }}
@@ -124,12 +131,20 @@ jobs:
       - name: Deploy application
         env:
           IMAGE: ${{ needs.build.outputs.image }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
         run: |
           # Aponta o Deployment para a imagem recém-publicada.
           sed -i "s|image: autogiro-app:latest|image: ${IMAGE}|" k8s/deployment.yaml
 
           kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/configmap.yaml -f k8s/secret.yaml
+          kubectl apply -f k8s/configmap.yaml
+
+          # O k8s/secret.yaml versionado contem apenas placeholders, para servir
+          # de documentacao da forma do Secret. Os valores reais vem dos secrets
+          # do GitHub e nunca tocam o repositorio.
+          kubectl -n autogiro create secret generic autogiro-secret             --from-literal=SECRET_KEY="${JWT_SECRET}"             --from-literal=DATABASE_URL="${DATABASE_URL}"             --from-literal=NEW_RELIC_LICENSE_KEY="${NEW_RELIC_LICENSE_KEY}"             --dry-run=client -o yaml | kubectl apply -f -
           kubectl apply -f k8s/deployment.yaml -f k8s/service.yaml -f k8s/hpa.yaml
           kubectl apply -f k8s/ingress.yaml
           kubectl -n autogiro rollout status deployment/autogiro-api --timeout=180s
