@@ -100,7 +100,7 @@ Ver [ADR-004](../adrs/ADR-004-emissor-desacoplado-do-validador.md) para a decis�
 |---|---|---|---|
 | `autogiro-auth` | autogiro-auth | Valida CPF, consulta o cliente, emite JWT | grátis permanente |
 | Kong Gateway OSS | autogiro-infra-k8s | Roteia `/api/v1/*` e valida a assinatura do JWT | open source |
-| `autogiro-api` | autogiro-app | Regras de negócio da oficina (OS, veículos, peças) | ~US$ 0,18/h |
+| `autogiro-api` | autogiro-app | Regras de negócio da oficina (OS, veículos, peças) | ~US$ 0,15/h |
 | HPA + metrics-server | infra-k8s / app | Escalabilidade horizontal por CPU e memória | incluído |
 | Neon PostgreSQL | autogiro-infra-db | Persistência, com branches por ambiente | grátis permanente |
 | New Relic | autogiro-infra-k8s | APM, logs, dashboards e alertas | grátis permanente |
