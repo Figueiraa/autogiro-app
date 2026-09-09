@@ -3,13 +3,19 @@
 # O plugin `jwt` valida o token emitido pela Lambda (autogiro-auth) antes de
 # rotear para o Service. Rotas públicas (/health, /docs) ficam em um Ingress
 # separado, sem o plugin.
+#
+# O plugin `autogiro-prometheus` entra nos dois: é ele que faz o Kong publicar
+# as métricas do próprio gateway — contagem por rota e por código HTTP, e a
+# latência gasta dentro do Kong separada da latência do upstream. As métricas
+# da aplicação não cobrem isso, porque uma requisição barrada na borda (401 sem
+# token) nunca chega até ela.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: autogiro-api
   namespace: autogiro
   annotations:
-    konghq.com/plugins: autogiro-jwt
+    konghq.com/plugins: autogiro-jwt,autogiro-prometheus
     konghq.com/strip-path: "false"
 spec:
   ingressClassName: kong
@@ -31,6 +37,7 @@ metadata:
   name: autogiro-api-public
   namespace: autogiro
   annotations:
+    konghq.com/plugins: autogiro-prometheus
     konghq.com/strip-path: "false"
 spec:
   ingressClassName: kong
