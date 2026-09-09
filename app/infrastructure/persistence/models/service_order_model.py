@@ -14,8 +14,14 @@ class ServiceOrder(Base):
     number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"), nullable=False)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), nullable=False)
+    # `name` e `create_type` explícitos: sem eles o SQLAlchemy derivaria o nome do
+    # tipo da classe Python (`serviceorderstatus`), que não é o nome criado pela
+    # migration (`service_order_status`) — e o PostgreSQL rejeita a comparação com
+    # "operator does not exist". O tipo é criado pela migration, não pelo ORM.
     status: Mapped[ServiceOrderStatus] = mapped_column(
-        Enum(ServiceOrderStatus), nullable=False, default=ServiceOrderStatus.RECEBIDA
+        Enum(ServiceOrderStatus, name="service_order_status", create_type=False),
+        nullable=False,
+        default=ServiceOrderStatus.RECEBIDA,
     )
     notes: Mapped[str | None] = mapped_column(Text)
     total_budget: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False, default=0)
