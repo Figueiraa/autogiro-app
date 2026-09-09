@@ -19,7 +19,7 @@ logs estruturados e traces para a stack de observabilidade.
 | Framework | FastAPI |
 | ORM | SQLAlchemy 2 (assíncrono, asyncpg) |
 | Banco | PostgreSQL 17 — [Neon](https://neon.com) gerenciado |
-| Testes | pytest · cobertura mínima de 90% |
+| Testes | pytest · **226 testes, 96% de cobertura** (gate mínimo: 90%) |
 | Qualidade | ruff · bandit · trivy |
 | Container | Docker (multi-stage, usuário não-root) |
 | Orquestração | Kubernetes · HPA · Probes |
@@ -110,7 +110,7 @@ uvicorn app.main:app --reload
 ### Testes
 
 ```bash
-pytest                      # suíte completa com gate de cobertura de 90%
+pytest                      # 226 testes, gate de cobertura de 90%
 ruff check app tests        # lint
 bandit -r app -ll           # análise de segurança
 ```
