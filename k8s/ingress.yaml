@@ -30,7 +30,17 @@ spec:
                 port:
                   number: 80
 ---
-# Rotas públicas: health checks, métricas e documentação — sem autenticação.
+# Rotas públicas: health checks e documentação — sem autenticação.
+#
+# `/metrics` NÃO entra aqui de propósito. O endpoint expõe telemetria interna —
+# nomes de endpoints, contagem de erros, volume de tráfego — que não precisa ser
+# legível pela internet. O agente Prometheus do New Relic coleta direto do pod,
+# de dentro do cluster, então publicá-lo no gateway só adicionaria exposição sem
+# adicionar função.
+#
+# Para inspecionar as métricas manualmente:
+#   kubectl -n autogiro port-forward svc/autogiro-api 8000:80
+#   curl http://localhost:8000/metrics
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
