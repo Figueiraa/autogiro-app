@@ -30,7 +30,10 @@ spec:
                 port:
                   number: 80
 ---
-# Rotas públicas: health checks e documentação — sem autenticação.
+# Rotas públicas: emissão de token, health checks e documentação — sem autenticação.
+#
+# `/api/v1/auth/token` precisa estar aqui: é a rota que *emite* o JWT. Se ela
+# ficasse no Ingress protegido, seria preciso um token para pedir um token.
 #
 # `/metrics` NÃO entra aqui de propósito. O endpoint expõe telemetria interna —
 # nomes de endpoints, contagem de erros, volume de tráfego — que não precisa ser
@@ -54,6 +57,13 @@ spec:
   rules:
     - http:
         paths:
+          - path: /api/v1/auth/token
+            pathType: Exact
+            backend:
+              service:
+                name: autogiro-api
+                port:
+                  number: 80
           - path: /health
             pathType: Prefix
             backend:
