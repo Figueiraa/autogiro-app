@@ -53,7 +53,7 @@ que `infrastructure` implementa. Detalhe de framework ou de banco não vaza para
 
 ## Autenticação
 
-As rotas sob `/api/v1` exigem um JWT emitido pelo [autogiro-auth](../autogiro-auth/) mediante CPF.
+As rotas sob `/api/v1` exigem um JWT emitido pelo [autogiro-auth](https://github.com/Figueiraa/autogiro-auth) mediante CPF.
 O Kong valida a assinatura antes de rotear; a aplicação lê o CPF da claim `sub` e resolve o cliente.
 
 ```bash
@@ -101,7 +101,7 @@ A API sobe em http://localhost:8000 com um PostgreSQL local.
 ### Sem Docker
 
 ```bash
-python -m venv venv && source venv/Scripts/activate   # Windows: venv\Scriptsctivate
+python -m venv venv && source venv/Scripts/activate   # Windows: .\venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                   # usa SQLite por padrão
 uvicorn app.main:app --reload
@@ -121,14 +121,21 @@ O deploy é automático pela pipeline: `develop` publica em homologação e `mai
 Manualmente:
 
 ```bash
-docker build -t autogiro-app:latest .
-kind load docker-image autogiro-app:latest --name autogiro
-kubectl apply -k k8s/
+# O cluster é EKS: a imagem precisa estar num registry que os nós alcancem.
+docker build -t ghcr.io/figueiraa/autogiro-app:local .
+docker push ghcr.io/figueiraa/autogiro-app:local
+
+kubectl -n autogiro set image deployment/autogiro-api \
+  api=ghcr.io/figueiraa/autogiro-app:local
 kubectl -n autogiro rollout status deployment/autogiro-api
 ```
 
-> Pré-requisitos: cluster provisionado por [autogiro-infra-k8s](../autogiro-infra-k8s/) e banco por
-> [autogiro-infra-db](../autogiro-infra-db/).
+> Na primeira instalação, antes de existir o Deployment, use `kubectl apply -k k8s/` —
+> lembrando que o Secret vem dos secrets do GitHub Actions, não do `k8s/secret.yaml`
+> versionado (que só documenta o formato).
+
+> Pré-requisitos: cluster provisionado por [autogiro-infra-k8s](https://github.com/Figueiraa/autogiro-infra-k8s) e banco por
+> [autogiro-infra-db](https://github.com/Figueiraa/autogiro-infra-db).
 
 ## Documentação da API
 
@@ -172,7 +179,7 @@ provisionados automaticamente a partir de [`monitoring/`](monitoring/):
 | Grafana | http://localhost:3000 | `admin` / `admin` |
 | Prometheus | http://localhost:9090 | — |
 
-**Dashboard `AutoGiro API — Observabilidade`** (17 painéis): saúde e SLO pelo método RED,
+**Dashboard `AutoGiro API — Observabilidade`** (15 painéis): saúde e SLO pelo método RED,
 latência p50/p95/p99 por endpoint, e os indicadores de negócio da oficina — OS abertas
 em 24h, orçamentos aprovados e recusados, transições de status e falhas de notificação.
 
