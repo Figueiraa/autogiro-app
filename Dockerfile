@@ -26,6 +26,20 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Atualizacoes de seguranca do Debian aplicadas sobre a base.
+#
+# As CVEs que o trivy barra (perl-base, gzip, libsqlite3, libpcre2) ja tem
+# correcao publicada no Debian, mas a imagem oficial `python:3.11-slim` ainda
+# nao a incorporou - pinar o digest garante build reproduzivel, nao base
+# corrigida. Enquanto o upstream nao publica, o upgrade e aplicado aqui.
+#
+# Roda no stage final: o que importa e a superficie da imagem que vai para o
+# cluster, nao a do builder, que e descartado.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Usuário sem privilégios
 RUN useradd --create-home --uid 1000 appuser
 
