@@ -36,3 +36,8 @@ build/
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
+
+# Saidas da invocacao da Lambda (aws lambda invoke ... resposta.json).
+# O roteiro do video as gera na cena 2, e o resposta.json contem um JWT valido.
+resposta.json
+erro.json
