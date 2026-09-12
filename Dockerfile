@@ -1,5 +1,13 @@
+# A base e pinada por digest, nao so pela tag. A tag `3.11-slim` e movel: o
+# mesmo commit produzia imagens diferentes conforme o dia do build, e o cache
+# do buildx (`cache-from: type=gha`) podia reaproveitar camadas antigas, ja com
+# CVEs corrigidas a montante. O pin torna o build reproduzivel e a atualizacao
+# da base um commit explicito e revisavel.
+#
+# Para atualizar:
+#   docker pull python:3.11-slim && docker inspect --format='{{index .RepoDigests 0}}' python:3.11-slim
 # ─── Stage 1: build das dependências ─────────────────────────────────────────
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS builder
 
 WORKDIR /app
 
@@ -11,7 +19,7 @@ RUN pip install --prefix=/install -r requirements.txt
 
 
 # ─── Stage 2: imagem final (slim, non-root) ──────────────────────────────────
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
 
 WORKDIR /app
 
